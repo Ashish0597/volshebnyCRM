@@ -1,0 +1,195 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useDispatch } from 'react-redux'
+import { useAuth } from '@hooks/useAuth'
+import { setUser } from '@redux/authSlice'
+import Button from '@components/Button'
+import Input from '@components/Input'
+import { Rocket } from 'lucide-react'
+
+const IS_DEV = import.meta.env.DEV
+
+/**
+ * Login Page
+ */
+const Login = () => {
+    const navigate = useNavigate()
+    const dispatch = useDispatch()
+    const { login } = useAuth()
+    const [formData, setFormData] = useState({
+        email: '',
+        password: '',
+    })
+    const [errors, setErrors] = useState({})
+    const [loading, setLoading] = useState(false)
+
+    const handleChange = (e) => {
+        const { name, value } = e.target
+        setFormData(prev => ({ ...prev, [name]: value }))
+        if (errors[name]) {
+            setErrors(prev => ({ ...prev, [name]: '' }))
+        }
+    }
+
+    const validate = () => {
+        const newErrors = {}
+        if (!formData.email) {
+            newErrors.email = 'Email is required'
+        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+            newErrors.email = 'Email is invalid'
+        }
+        if (!formData.password) {
+            newErrors.password = 'Password is required'
+        } else if (formData.password.length < 6) {
+            newErrors.password = 'Password must be at least 6 characters'
+        }
+        return newErrors
+    }
+
+    const handleSubmit = async (e) => {
+        e.preventDefault()
+
+        const validationErrors = validate()
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors)
+            return
+        }
+
+        setLoading(true)
+        const result = await login(formData)
+        setLoading(false)
+
+        if (result.success) {
+            navigate('/dashboard')
+        } else {
+            let errorMessage = result.error || 'Login failed. Please try again.'
+
+
+            setErrors({ general: errorMessage })
+        }
+    }
+
+    const handleBypass = () => {
+        // DEV ONLY — inject a mock SuperAdmin user into Redux + localStorage
+        const mockUser = {
+            userId: 1,
+            firstName: 'Dev',
+            lastName: 'Admin',
+            email: 'dev@volshebnyCRM.com',
+            emailId: 'dev@volshebnyCRM.com',
+            roleId: 1,        // 1 = SuperAdmin (sees Finance tab, all offices)
+            officeId: 1,
+            countryId: 0,
+        }
+        const mockToken = 'dev-bypass-token'
+
+        localStorage.setItem('authToken', mockToken)
+        localStorage.setItem('user', JSON.stringify(mockUser))
+
+        // Properly hydrate Redux state — no reload needed
+        dispatch(setUser(mockUser))
+        navigate('/dashboard')
+    }
+
+    return (
+        <div>
+            <div className="text-center mb-8">
+                <h2 className="text-2xl font-bold text-secondary-900">
+                    Welcome Back
+                </h2>
+                <p className="text-secondary-600 mt-2">
+                    Sign in to your account to continue
+                </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+                {errors.general && (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                        {errors.general}
+                    </div>
+                )}
+
+                <Input
+                    label="Email Address"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    error={errors.email}
+                    touched={true}
+                    placeholder="you@example.com"
+                    required
+                    icon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                        </svg>
+                    }
+                />
+
+                <Input
+                    label="Password"
+                    name="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    error={errors.password}
+                    touched={true}
+                    placeholder="••••••••"
+                    required
+                    icon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    }
+                />
+
+                <div className="flex items-center justify-between">
+                    <label className="flex items-center">
+                        <input type="checkbox" className="rounded border-secondary-300 text-primary-600 focus:ring-primary-500" />
+                        <span className="ml-2 text-sm text-secondary-600">Remember me</span>
+                    </label>
+                    <a href="#" className="text-sm text-primary-600 hover:text-primary-700">
+                        Forgot password?
+                    </a>
+                </div>
+
+                <Button
+                    type="submit"
+                    variant="primary"
+                    className="w-full"
+                    loading={loading}
+                    disabled={loading}
+                >
+                    Sign In
+                </Button>
+
+                {IS_DEV && (
+                    <div className="mt-4">
+                        <div className="relative">
+                            <div className="absolute inset-0 flex items-center">
+                                <div className="w-full border-t border-dashed border-secondary-200" />
+                            </div>
+                            <div className="relative flex justify-center text-xs">
+                                <span className="px-2 bg-white text-secondary-400 uppercase tracking-widest font-semibold">Dev Only</span>
+                            </div>
+                        </div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full mt-3 flex items-center justify-center gap-2 border-dashed border-amber-400 text-amber-600 hover:bg-amber-50"
+                            onClick={handleBypass}
+                        >
+                            <Rocket className="w-4 h-4" />
+                            <span>Bypass Login (Dev Mode)</span>
+                        </Button>
+                        <p className="text-xs text-secondary-400 mt-1 text-center">
+                            Logs in as SuperAdmin without API call
+                        </p>
+                    </div>
+                )}
+            </form>
+        </div>
+    )
+}
+
+export default Login
